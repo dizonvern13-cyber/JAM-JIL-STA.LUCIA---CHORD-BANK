@@ -32,7 +32,7 @@
         .btn-add { background: none; border: 1px dashed var(--accent); color: var(--accent); width: 100%; margin-bottom: 20px; margin-top: 10px; }
         .btn-fab { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 30px; background: var(--primary); color: #000; font-size: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); z-index: 99; }
         .btn-back { background: none; color: #777; margin-bottom: 10px; border: none; cursor: pointer; }
-        .view-content { white-space: pre-wrap; font-family: 'Courier New', monospace; color: #f1c40f; font-size: 16px; background: #000; padding: 15px; border-radius: 8px; margin-top: 5px; line-height: 1.4; overflow-x: auto; }
+        .view-content { white-space: pre-wrap; font-family: 'Courier New', monospace; color: #f1c40f; font-size: 18px; font-weight: bold; background: #000; padding: 15px; border-radius: 8px; margin-top: 5px; line-height: 1.4; overflow-x: auto; }
         .ref-link-display { display: inline-block; background: #ff0000; color: white; padding: 5px 12px; border-radius: 20px; text-decoration: none; font-size: 11px; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
@@ -40,16 +40,16 @@
 
 <header>
     <h2 onclick="goHome()">Worship Hub</h2>
-    <div id="status" class="status-bar online-status">Initializing Cloud...</div>
+    <div id="status" class="status-bar online-status">Ready</div>
 </header>
 
 <div class="container">
     <div id="homeScreen" class="screen active">
         <div style="display:flex; justify-content: space-between; align-items: center;">
             <h3 style="margin-bottom:15px;">Shared Setlists</h3>
-            <button class="btn-mini" onclick="syncCloud()">🔄 Force Sync</button>
+            <button class="btn-mini" onclick="syncCloud()">🔄 Refresh</button>
         </div>
-        <div id="historyList">Checking for updates...</div>
+        <div id="historyList">Loading...</div>
         <button class="btn btn-fab" onclick="prepareNewSetlist()">+</button>
     </div>
 
@@ -59,11 +59,11 @@
         <div class="form-group"><label>Worship Leader</label><input type="text" id="worshipLeader" placeholder="Name"></div>
         <div id="dynamicSongsContainer"></div>
         <button class="btn btn-add" onclick="addSongSlot()">+ Add Song Slot</button>
-        <button class="btn btn-primary" id="saveBtn" onclick="saveLogic()">☁️ SAVE & SYNC TO ALL</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveLogic()">☁️ SAVE & SYNC</button>
     </div>
 
     <div id="viewScreen" class="screen">
-        <button class="btn btn-back" onclick="goHome()">← Back to List</button>
+        <button class="btn btn-back" onclick="goHome()">← Back</button>
         <div id="viewDetails"></div>
     </div>
 </div>
@@ -73,7 +73,7 @@
     const BIN_ID = '699c2edf43b1c97be9963437';
     let isEditing = null;
 
-    // --- TRANSPOSE ENGINE ---
+    // --- TRANSPOSE ---
     const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     function transposeChord(chord, semitones) {
         return chord.replace(/[A-G][#b]?/g, (match) => {
@@ -99,164 +99,3 @@
     }
 
     // --- NAVIGATION ---
-    function showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
-        window.scrollTo(0,0);
-    }
-
-    function goHome() {
-        window.history.replaceState({}, '', window.location.pathname); 
-        showScreen('homeScreen');
-    }
-
-    // --- LOGIC ---
-    function addSongSlot(title = '', chords = '', ref = '') {
-        const container = document.getElementById('dynamicSongsContainer');
-        const songCount = container.querySelectorAll('.song-item').length + 1;
-        let label = (songCount === 1) ? "OPENING" : (songCount === 2) ? "PRAISE" : (songCount === 3) ? "WORSHIP" : `SONG #${songCount}`;
-        const div = document.createElement('div');
-        div.className = 'song-item';
-        div.innerHTML = `
-            <div class="song-header">
-                <span class="song-label" style="color:var(--primary); font-weight:bold;">${label}</span>
-                <button class="btn" style="background:#cf6679; color:white; padding:4px 8px; font-size:10px;" onclick="this.parentElement.parentElement.remove(); refreshLabels();">Remove</button>
-            </div>
-            <div class="transpose-row">
-                <button onclick="runTranspose(this, -1)">-1 Key</button>
-                <button onclick="runTranspose(this, 1)">+1 Key</button>
-            </div>
-            <input type="text" class="song-title" placeholder="Song Title" value="${title}" style="margin-bottom:8px;">
-            <input type="text" class="song-ref" placeholder="YouTube Link" value="${ref}" style="margin-bottom:8px; border-color: #444; font-size: 12px;">
-            <textarea class="song-chords" placeholder="Chords...">${chords}</textarea>`;
-        container.appendChild(div);
-    }
-
-    function refreshLabels() {
-        document.querySelectorAll('.song-label').forEach((el, i) => {
-            const count = i + 1;
-            el.innerText = (count === 1) ? "OPENING" : (count === 2) ? "PRAISE" : (count === 3) ? "WORSHIP" : `SONG #${count}`;
-        });
-    }
-
-    function prepareNewSetlist() {
-        isEditing = null;
-        document.getElementById('serviceDate').valueAsDate = new Date();
-        document.getElementById('worshipLeader').value = "";
-        document.getElementById('dynamicSongsContainer').innerHTML = "";
-        addSongSlot(); addSongSlot(); addSongSlot();
-        showScreen('editScreen');
-    }
-
-    async function saveLogic() {
-        if(!navigator.onLine) return alert("You are offline. Please connect to internet to save.");
-        
-        const titles = document.querySelectorAll('.song-title');
-        const chords = document.querySelectorAll('.song-chords');
-        const refs = document.querySelectorAll('.song-ref');
-        const songs = [];
-        titles.forEach((t, i) => songs.push({ t: t.value, c: chords[i].value, r: refs[i].value }));
-        const setlist = { id: isEditing || Date.now(), date: document.getElementById('serviceDate').value, leader: document.getElementById('worshipLeader').value, songs: songs };
-
-        updateStatus("Uploading to Cloud...", "online-status");
-        try {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
-            let cloud = (await res.json()).record || [];
-            cloud = isEditing ? cloud.map(item => item.id === isEditing ? setlist : item) : [setlist, ...cloud];
-            
-            await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, { 
-                method: 'PUT', 
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY }, 
-                body: JSON.stringify(cloud) 
-            });
-            
-            localStorage.setItem('setlists', JSON.stringify(cloud)); 
-            renderHome(cloud);
-            updateStatus("● Changes Saved Globally", "online-status");
-            alert("Setlist saved to cloud!");
-            showScreen('homeScreen');
-        } catch (e) { alert("Failed to save. Try again."); }
-    }
-
-    async function syncCloud() {
-        // Load whatever we have in local storage first
-        const local = JSON.parse(localStorage.getItem('setlists') || "[]");
-        if(local.length > 0) renderHome(local);
-
-        if(navigator.onLine) {
-            updateStatus("Syncing with Cloud...", "online-status");
-            try {
-                // Fetch with cache-busting
-                const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?nocache=${Date.now()}`, { 
-                    headers: {'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false'} 
-                });
-                const data = await r.json();
-                if(data && Array.isArray(data)) {
-                    localStorage.setItem('setlists', JSON.stringify(data));
-                    renderHome(data);
-                    updateStatus("● Online: Live Data", "online-status");
-                    
-                    const urlId = new URLSearchParams(window.location.search).get('id');
-                    if(urlId) viewSetlist(parseInt(urlId));
-                }
-            } catch(e) { updateStatus("! Sync Error", "offline-status"); }
-        } else {
-            updateStatus("! Working Offline", "offline-status");
-        }
-    }
-
-    function renderHome(data) {
-        if(!data || data.length === 0) {
-            document.getElementById('historyList').innerHTML = "<p style='color:#666; text-align:center;'>No shared setlists yet.</p>";
-            return;
-        }
-        document.getElementById('historyList').innerHTML = data.map(s => `
-            <div class="service-card" onclick="viewSetlist(${s.id})">
-                <div class="service-date">${s.date}</div>
-                <div class="service-leader">Leader: ${s.leader}</div>
-                <div class="card-actions">
-                    <button class="btn-mini" onclick="event.stopPropagation(); editSetlist(${s.id})">Edit</button>
-                    <button class="btn-mini" style="color:var(--primary)" onclick="event.stopPropagation(); shareLink(${s.id})">🔗 Link</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function shareLink(id) {
-        const url = window.location.origin + window.location.pathname + "?id=" + id;
-        navigator.clipboard.writeText(url).then(() => alert("Direct Link Copied!"));
-    }
-
-    function viewSetlist(id) {
-        const data = JSON.parse(localStorage.getItem('setlists') || "[]");
-        const s = data.find(x => x.id === id);
-        if(!s) return;
-        let content = `<h2 style="color:var(--primary)">${s.date}</h2><p style="color:var(--accent);">Leader: ${s.leader}</p><hr style="border:0; border-top:1px solid #333; margin:20px 0;">`;
-        const labels = ["OPENING", "PRAISE", "WORSHIP"];
-        s.songs.forEach((song, i) => {
-            content += `<div style="margin-bottom:30px;"><div style="font-size:12px; color:var(--primary);">${labels[i] || `SONG #${i+1}`}</div><div style="font-size:20px; font-weight:bold;">${song.t}</div>${song.r ? `<a href="${song.r}" target="_blank" class="ref-link-display">▶ LISTEN REFERENCE</a>` : ''}<div class="view-content">${song.c}</div></div>`;
-        });
-        document.getElementById('viewDetails').innerHTML = content;
-        showScreen('viewScreen');
-    }
-
-    function editSetlist(id) {
-        const data = JSON.parse(localStorage.getItem('setlists') || "[]");
-        const s = data.find(x => x.id === id);
-        if(!s) return;
-        isEditing = id;
-        document.getElementById('serviceDate').value = s.date;
-        document.getElementById('worshipLeader').value = s.leader;
-        document.getElementById('dynamicSongsContainer').innerHTML = "";
-        s.songs.forEach(sg => addSongSlot(sg.t, sg.c, sg.r));
-        showScreen('editScreen');
-    }
-
-    function updateStatus(m, c) { const e = document.getElementById('status'); e.innerText = m; e.className = "status-bar " + c; }
-    
-    // Auto-sync on load
-    window.onload = syncCloud;
-    window.addEventListener('online', syncCloud);
-</script>
-</body>
-</html>
